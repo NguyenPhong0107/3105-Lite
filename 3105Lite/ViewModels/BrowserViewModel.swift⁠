@@ -1,0 +1,74 @@
+import Foundation
+import SwiftUI
+
+@Observable
+final class BrowserViewModel {
+    var files: [FileItem] = []
+    var errorMessage: String?
+    var isLoading: Bool = false
+    
+    private let fileAccessService: FileAccessService
+    private let fileOperationService = FileOperationService() // Khởi tạo service mới
+    
+    init(fileAccessService: FileAccessService) {
+        self.fileAccessService = fileAccessService
+    }
+    
+    func loadFiles(from url: URL) {
+        /* ... Giữ nguyên code loadFiles cũ của Phase 3 ... */
+        isLoading = true
+        errorMessage = nil
+        do {
+            self.files = try fileAccessService.performSecureAccess(url: url) {
+                let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .creationDateKey, .contentModificationDateKey]
+                let urls = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])
+                return urls.compactMap { fileURL in
+                    guard let resourceValues = try? fileURL.resourceValues(forKeys: Set(keys)) else { return nil }
+                    let isDir = resourceValues.isDirectory ?? false
+                    let size = Int64(resourceValues.fileSize ?? 0)
+                    return FileItem(id: fileURL, url: fileURL, name: fileURL.lastPathComponent, isDirectory: isDir, size: size, creationDate: resourceValues.creationDate, modificationDate: resourceValues.contentModificationDate)
+                }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            }
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+    
+    // MARK: - File Operations
+    
+    func createFolder(in parentURL: URL, name: String) {
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        do {
+            try fileAccessService.performSecureAccess(url: parentURL) {
+                try fileOperationService.createFolder(at: parentURL, name: name)
+            }
+            loadFiles(from: parentURL) // Refresh lại danh sách
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
+    func delete(file: FileItem, in parentURL: URL) {
+        do {
+            try fileAccessService.performSecureAccess(url: parentURL) {
+                try fileOperationService.deleteItem(at: file.url)
+            }
+            loadFiles(from: parentURL) // Refresh lại danh sách
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+    
+    func rename(file: FileItem, newName: String, in parentURL: URL) {
+        guard !newName.trimmingCharacters(in: .whitespaces).isEmpty, newName != file.name else { return }
+        do {
+            try fileAccessService.performSecureAccess(url: parentURL) {
+                try fileOperationService.renameItem(at: file.url, newName: newName)
+            }
+            loadFiles(from: parentURL) // Refresh lại danh sách
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+    }
+}
