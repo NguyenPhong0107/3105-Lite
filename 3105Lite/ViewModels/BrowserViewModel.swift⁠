@@ -20,22 +20,23 @@ final class BrowserViewModel {
     var sortOption: SortOption = .name
     var sortAscending: Bool = true
     
+    // Quản lý Chế độ Chọn hàng loạt (Phase 13)
+    var selectedFileIDs: Set<UUID> = []
+    var isEditMode: Bool = false
+    
     let fileAccessService: FileAccessService
     
     init(fileAccessService: FileAccessService) {
         self.fileAccessService = fileAccessService
     }
     
-    /// Danh sách file đã qua lọc tìm kiếm và sắp xếp
     var filteredAndSortedFiles: [FileItem] {
         var result = files
         
-        // 1. Lọc theo từ khóa tìm kiếm
         if !searchText.isEmpty {
             result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
         
-        // 2. Sắp xếp danh sách (Ưu tiên Thư mục luôn nằm ở trên cùng)
         result.sort { item1, item2 in
             if item1.isDirectory != item2.isDirectory {
                 return item1.isDirectory && !item2.isDirectory
@@ -94,6 +95,17 @@ final class BrowserViewModel {
         } catch {
             self.errorMessage = "Không thể xóa: \(error.localizedDescription)"
         }
+    }
+    
+    /// Xóa các tệp đang được chọn hàng loạt
+    func deleteSelectedFiles(in folderURL: URL) {
+        let selectedItems = files.filter { selectedFileIDs.contains($0.id) }
+        for item in selectedItems {
+            try? FileManager.default.removeItem(at: item.url)
+        }
+        selectedFileIDs.removeAll()
+        isEditMode = false
+        loadFiles(from: folderURL)
     }
     
     func createFolder(in folderURL: URL, name: String) {
