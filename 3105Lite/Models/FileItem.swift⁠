@@ -1,22 +1,11 @@
 import Foundation
-import UniformTypeIdentifiers
 
-/// Model đại diện cho 1 tệp hoặc thư mục khi render trên UI
 struct FileItem: Identifiable, Hashable, Sendable {
-    let id: URL
+    let id = UUID()
     let url: URL
     let name: String
     let isDirectory: Bool
     let size: Int64
-    let creationDate: Date?
     let modificationDate: Date?
-    
-    var fileExtension: String {
-        url.pathExtension.lowercased()
-    }
-    
-    // Sử dụng UTType (UniformTypeIdentifiers) của iOS
-    var type: UTType {
-        UTType(filenameExtension: fileExtension) ?? (isDirectory ? .folder : .data)
-    }
+    var isFavorite: Bool = false
 }
