@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("autoCleanCache") private var autoCleanCache: Bool = false
+    @AppStorage("isAppLockEnabled") private var isAppLockEnabled: Bool = false
+    
     @State private var cacheSize: String = "Đang tính..."
     
     var body: some View {
@@ -11,6 +13,21 @@ struct SettingsView: View {
                 // Tùy chỉnh Giao diện
                 Section(header: Text("Giao diện")) {
                     Toggle("Chế độ tối (Dark Mode)", isOn: $isDarkMode)
+                }
+                
+                // Bảo mật
+                Section(header: Text("Bảo mật")) {
+                    Toggle("Bật khóa ứng dụng (Face ID / Passcode)", isOn: $isAppLockEnabled)
+                        .onChange(of: isAppLockEnabled) { oldValue, newValue in
+                            if newValue {
+                                // Xác thực ngay khi người dùng bật tính năng
+                                SecurityService.shared.authenticateUser(reason: "Xác nhận để bật khóa ứng dụng") { success, _ in
+                                    if !success {
+                                        isAppLockEnabled = false
+                                    }
+                                }
+                            }
+                        }
                 }
                 
                 // Quản lý Bộ nhớ & Cache
