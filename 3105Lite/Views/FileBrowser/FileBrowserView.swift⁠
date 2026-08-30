@@ -6,7 +6,6 @@ struct FileBrowserView: View {
     
     @State private var viewModel: BrowserViewModel
     
-    // States cho các Alert nhập text
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
     
@@ -23,24 +22,24 @@ struct FileBrowserView: View {
     var body: some View {
         List {
             if viewModel.isLoading {
-                ProgressView("Loading...")
+                ProgressView("Đang tải...")
                     .frame(maxWidth: .infinity, alignment: .center)
-            } else if viewModel.files.isEmpty {
-                Text("Folder is empty")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if viewModel.filteredAndSortedFiles.isEmpty {
+                ContentUnavailableView(
+                    viewModel.searchText.isEmpty ? "Thư mục trống" : "Không tìm thấy kết quả",
+                    systemImage: viewModel.searchText.isEmpty ? "folder" : "magnifyingglass",
+                    description: Text(viewModel.searchText.isEmpty ? "" : "Thử tìm kiếm với từ khóa khác.")
+                )
             } else {
-                ForEach(viewModel.files) { file in
+                ForEach(viewModel.filteredAndSortedFiles) { file in
                     NavigationLink {
                         if file.isDirectory {
-                            // Duyệt vào thư mục con
                             FileBrowserView(
                                 folderURL: file.url,
                                 title: file.name,
                                 fileAccessService: _viewModel.wrappedValue.fileAccessService
                             )
                         } else {
-                            // Phân loại mở file dựa trên đuôi mở rộng
                             let ext = file.url.pathExtension.lowercased()
                             let textExtensions = ["txt", "json", "swift", "xml", "csv", "md", "yml"]
                             
@@ -51,7 +50,6 @@ struct FileBrowserView: View {
                                     fileAccessService: _viewModel.wrappedValue.fileAccessService
                                 )
                             } else {
-                                // Mở các file ảnh, nhạc, video, pdf... bằng QuickLookPreview
                                 QuickLookPreview(fileURL: file.url)
                                     .navigationTitle(file.name)
                                     .navigationBarTitleDisplayMode(.inline)
@@ -60,17 +58,12 @@ struct FileBrowserView: View {
                     } label: {
                         fileRow(for: file)
                     }
-                    // Context Menu (Nhấn giữ) - Zip/Unzip, Rename, Delete
                     .contextMenu {
                         if file.url.pathExtension.lowercased() == "zip" {
                             Button(action: {
                                 Task {
-                                    do {
-                                        _ = try await ZipService().unzipItem(at: file.url)
-                                        viewModel.loadFiles(from: folderURL)
-                                    } catch {
-                                        // Xử lý lỗi nếu cần
-                                    }
+                                    _ = try? await ZipService().unzipItem(at: file.url)
+                                    viewModel.loadFiles(from: folderURL)
                                 }
                             }) {
                                 Label("Giải nén (Unzip)", systemImage: "doc.zipper")
@@ -78,12 +71,8 @@ struct FileBrowserView: View {
                         } else {
                             Button(action: {
                                 Task {
-                                    do {
-                                        _ = try await ZipService().zipItem(at: file.url)
-                                        viewModel.loadFiles(from: folderURL)
-                                    } catch {
-                                        // Xử lý lỗi nếu cần
-                                    }
+                                    _ = try? await ZipService().zipItem(at: file.url)
+                                    viewModel.loadFiles(from: folderURL)
                                 }
                             }) {
                                 Label("Nén thành .zip", systemImage: "archivebox")
@@ -97,29 +86,52 @@ struct FileBrowserView: View {
                             newName = file.name
                             showingRenameAlert = true
                         }) {
-                            Label("Rename", systemImage: "pencil")
+                            Label("Đổi tên", systemImage: "pencil")
                         }
                         
                         Button(role: .destructive, action: {
                             viewModel.delete(file: file, in: folderURL)
                         }) {
-                            Label("Delete", systemImage: "trash")
+                            Label("Xóa", systemImage: "trash")
                         }
                     }
-                    // Swipe to Delete (Vuốt sang trái)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             viewModel.delete(file: file, in: folderURL)
                         } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label("Xóa", systemImage: "trash")
                         }
                     }
                 }
             }
         }
         .navigationTitle(title)
+        .searchable(text: $viewModel.searchText, prompt: "Tìm kiếm tệp tin...")
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                // Menu Sắp xếp
+                Menu {
+                    Picker("Sắp xếp theo", selection: $viewModel.sortOption) {
+                        ForEach(SortOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Button(action: {
+                        viewModel.sortAscending.toggle()
+                    }) {
+                        Label(
+                            viewModel.sortAscending ? "Thứ tự: Tăng dần" : "Thứ tự: Giảm dần",
+                            systemImage: viewModel.sortAscending ? "arrow.up" : "arrow.down"
+                        )
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                
+                // Nút Tạo Thư Mục
                 Button(action: {
                     newFolderName = ""
                     showingNewFolderAlert = true
@@ -131,7 +143,6 @@ struct FileBrowserView: View {
         .onAppear {
             viewModel.loadFiles(from: folderURL)
         }
-        // Alert Lỗi
         .alert(
             "Lỗi",
             isPresented: Binding(
@@ -143,7 +154,6 @@ struct FileBrowserView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
-        // Alert Tạo thư mục
         .alert("Tạo thư mục mới", isPresented: $showingNewFolderAlert) {
             TextField("Tên thư mục", text: $newFolderName)
             Button("Hủy", role: .cancel) { }
@@ -151,7 +161,6 @@ struct FileBrowserView: View {
                 viewModel.createFolder(in: folderURL, name: newFolderName)
             }
         }
-        // Alert Đổi tên
         .alert("Đổi tên", isPresented: $showingRenameAlert) {
             TextField("Tên mới", text: $newName)
             Button("Hủy", role: .cancel) { }
@@ -163,7 +172,6 @@ struct FileBrowserView: View {
         }
     }
     
-    // View Builder hiển thị hàng cho từng file
     @ViewBuilder
     private func fileRow(for file: FileItem) -> some View {
         HStack {
