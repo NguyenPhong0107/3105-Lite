@@ -5,6 +5,7 @@ struct FileBrowserView: View {
     let title: String
     
     @State private var viewModel: BrowserViewModel
+    @State private var favoritesService = FavoritesService()
     
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
@@ -59,6 +60,18 @@ struct FileBrowserView: View {
                         fileRow(for: file)
                     }
                     .contextMenu {
+                        // Thêm/Xóa khỏi danh sách Yêu thích
+                        Button(action: {
+                            favoritesService.toggleFavorite(for: file.url)
+                        }) {
+                            Label(
+                                favoritesService.isFavorite(url: file.url) ? "Bỏ yêu thích" : "Yêu thích",
+                                systemImage: favoritesService.isFavorite(url: file.url) ? "star.slash.fill" : "star.fill"
+                            )
+                        }
+                        
+                        Divider()
+                        
                         if file.url.pathExtension.lowercased() == "zip" {
                             Button(action: {
                                 Task {
@@ -109,7 +122,6 @@ struct FileBrowserView: View {
         .searchable(text: $viewModel.searchText, prompt: "Tìm kiếm tệp tin...")
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                // Nút Bật/Tắt chế độ Chọn hàng loạt
                 EditButton()
                 
                 Menu {
@@ -141,7 +153,6 @@ struct FileBrowserView: View {
                 }
             }
             
-            // Thanh công cụ thao tác hàng loạt bên dưới màn hình khi ở chế độ Edit
             ToolbarItemGroup(placement: .bottomBar) {
                 if !viewModel.selectedFileIDs.isEmpty {
                     Text("Đã chọn \(viewModel.selectedFileIDs.count) mục")
@@ -161,13 +172,10 @@ struct FileBrowserView: View {
         .onAppear {
             viewModel.loadFiles(from: folderURL)
         }
-        .alert(
-            "Lỗi",
-            isPresented: Binding(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.errorMessage = nil } }
-            )
-        ) {
+        .alert("Lỗi", isPresented: Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage ?? "")
@@ -199,9 +207,17 @@ struct FileBrowserView: View {
                 .frame(width: 40)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(file.name)
-                    .font(.body)
-                    .lineLimit(1)
+                HStack {
+                    Text(file.name)
+                        .font(.body)
+                        .lineLimit(1)
+                    
+                    if favoritesService.isFavorite(url: file.url) {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                    }
+                }
                 
                 if !file.isDirectory {
                     Text(formatBytes(file.size))
