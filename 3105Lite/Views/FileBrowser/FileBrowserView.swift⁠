@@ -33,26 +33,35 @@ struct FileBrowserView: View {
                 ForEach(viewModel.files) { file in
                     NavigationLink {
                         if file.isDirectory {
-                            // Drill-down: Duyệt vào thư mục con
+                            // Duyệt vào thư mục con
                             FileBrowserView(
                                 folderURL: file.url,
                                 title: file.name,
                                 fileAccessService: _viewModel.wrappedValue.fileAccessService
                             )
                         } else {
-                            // Mở File Editor để chỉnh sửa file text
-                            FileEditorView(
-                                fileURL: file.url,
-                                parentURL: folderURL,
-                                fileAccessService: _viewModel.wrappedValue.fileAccessService
-                            )
+                            // Phân loại mở file dựa trên đuôi mở rộng
+                            let ext = file.url.pathExtension.lowercased()
+                            let textExtensions = ["txt", "json", "swift", "xml", "csv", "md", "yml"]
+                            
+                            if textExtensions.contains(ext) {
+                                FileEditorView(
+                                    fileURL: file.url,
+                                    parentURL: folderURL,
+                                    fileAccessService: _viewModel.wrappedValue.fileAccessService
+                                )
+                            } else {
+                                // Mở các file ảnh, nhạc, video, pdf... bằng QuickLookPreview
+                                QuickLookPreview(fileURL: file.url)
+                                    .navigationTitle(file.name)
+                                    .navigationBarTitleDisplayMode(.inline)
+                            }
                         }
                     } label: {
                         fileRow(for: file)
                     }
-                    // Context Menu (Nhấn giữ) - Tích hợp Zip/Unzip, Rename, Delete
+                    // Context Menu (Nhấn giữ) - Zip/Unzip, Rename, Delete
                     .contextMenu {
-                        // Tùy chọn Nén / Giải nén (Phase 10)
                         if file.url.pathExtension.lowercased() == "zip" {
                             Button(action: {
                                 Task {
@@ -154,7 +163,7 @@ struct FileBrowserView: View {
         }
     }
     
-    // Tách Row ra thành View builder cho gọn
+    // View Builder hiển thị hàng cho từng file
     @ViewBuilder
     private func fileRow(for file: FileItem) -> some View {
         HStack {
