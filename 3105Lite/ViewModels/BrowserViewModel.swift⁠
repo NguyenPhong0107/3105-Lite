@@ -1,74 +1,120 @@
 import Foundation
 import SwiftUI
 
+enum SortOption: String, CaseIterable, Identifiable {
+    case name = "Tên"
+    case size = "Kích thước"
+    case date = "Ngày tạo"
+    
+    var id: String { self.rawValue }
+}
+
 @Observable
 final class BrowserViewModel {
     var files: [FileItem] = []
-    var errorMessage: String?
     var isLoading: Bool = false
+    var errorMessage: String?
     
-    private let fileAccessService: FileAccessService
-    private let fileOperationService = FileOperationService() // Khởi tạo service mới
+    // Quản lý Tìm kiếm & Sắp xếp
+    var searchText: String = ""
+    var sortOption: SortOption = .name
+    var sortAscending: Bool = true
+    
+    let fileAccessService: FileAccessService
     
     init(fileAccessService: FileAccessService) {
         self.fileAccessService = fileAccessService
     }
     
-    func loadFiles(from url: URL) {
-        /* ... Giữ nguyên code loadFiles cũ của Phase 3 ... */
+    /// Danh sách file đã qua lọc tìm kiếm và sắp xếp
+    var filteredAndSortedFiles: [FileItem] {
+        var result = files
+        
+        // 1. Lọc theo từ khóa tìm kiếm
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        
+        // 2. Sắp xếp danh sách (Ưu tiên Thư mục luôn nằm ở trên cùng)
+        result.sort { item1, item2 in
+            if item1.isDirectory != item2.isDirectory {
+                return item1.isDirectory && !item2.isDirectory
+            }
+            
+            let isOrderingAsc = sortAscending
+            switch sortOption {
+            case .name:
+                return isOrderingAsc ? item1.name.localizedStandardCompare(item2.name) == .orderedAscending
+                                     : item1.name.localizedStandardCompare(item2.name) == .orderedDescending
+            case .size:
+                return isOrderingAsc ? item1.size < item2.size : item1.size > item2.size
+            case .date:
+                let date1 = item1.modificationDate ?? Date.distantPast
+                let date2 = item2.modificationDate ?? Date.distantPast
+                return isOrderingAsc ? date1 < date2 : date1 > date2
+            }
+        }
+        
+        return result
+    }
+    
+    func loadFiles(from folderURL: URL) {
         isLoading = true
         errorMessage = nil
+        
         do {
-            self.files = try fileAccessService.performSecureAccess(url: url) {
-                let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .creationDateKey, .contentModificationDateKey]
-                let urls = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])
-                return urls.compactMap { fileURL in
-                    guard let resourceValues = try? fileURL.resourceValues(forKeys: Set(keys)) else { return nil }
-                    let isDir = resourceValues.isDirectory ?? false
-                    let size = Int64(resourceValues.fileSize ?? 0)
-                    return FileItem(id: fileURL, url: fileURL, name: fileURL.lastPathComponent, isDirectory: isDir, size: size, creationDate: resourceValues.creationDate, modificationDate: resourceValues.contentModificationDate)
-                }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            let fileManager = FileManager.default
+            let contents = try fileManager.contentsOfDirectory(
+                at: folderURL,
+                includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            )
+            
+            self.files = contents.compactMap { url in
+                let resourceValues = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey])
+                return FileItem(
+                    url: url,
+                    name: url.lastPathComponent,
+                    isDirectory: resourceValues?.isDirectory ?? false,
+                    size: Int64(resourceValues?.fileSize ?? 0),
+                    modificationDate: resourceValues?.contentModificationDate
+                )
             }
         } catch {
             self.errorMessage = error.localizedDescription
         }
+        
         isLoading = false
     }
     
-    // MARK: - File Operations
+    func delete(file: FileItem, in folderURL: URL) {
+        do {
+            try FileManager.default.removeItem(at: file.url)
+            loadFiles(from: folderURL)
+        } catch {
+            self.errorMessage = "Không thể xóa: \(error.localizedDescription)"
+        }
+    }
     
-    func createFolder(in parentURL: URL, name: String) {
+    func createFolder(in folderURL: URL, name: String) {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let newFolderURL = folderURL.appendingPathComponent(name)
         do {
-            try fileAccessService.performSecureAccess(url: parentURL) {
-                try fileOperationService.createFolder(at: parentURL, name: name)
-            }
-            loadFiles(from: parentURL) // Refresh lại danh sách
+            try FileManager.default.createDirectory(at: newFolderURL, withIntermediateDirectories: true)
+            loadFiles(from: folderURL)
         } catch {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = "Không thể tạo thư mục: \(error.localizedDescription)"
         }
     }
     
-    func delete(file: FileItem, in parentURL: URL) {
+    func rename(file: FileItem, newName: String, in folderURL: URL) {
+        guard !newName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let destinationURL = folderURL.appendingPathComponent(newName)
         do {
-            try fileAccessService.performSecureAccess(url: parentURL) {
-                try fileOperationService.deleteItem(at: file.url)
-            }
-            loadFiles(from: parentURL) // Refresh lại danh sách
+            try FileManager.default.moveItem(at: file.url, to: destinationURL)
+            loadFiles(from: folderURL)
         } catch {
-            self.errorMessage = error.localizedDescription
-        }
-    }
-    
-    func rename(file: FileItem, newName: String, in parentURL: URL) {
-        guard !newName.trimmingCharacters(in: .whitespaces).isEmpty, newName != file.name else { return }
-        do {
-            try fileAccessService.performSecureAccess(url: parentURL) {
-                try fileOperationService.renameItem(at: file.url, newName: newName)
-            }
-            loadFiles(from: parentURL) // Refresh lại danh sách
-        } catch {
-            self.errorMessage = error.localizedDescription
+            self.errorMessage = "Không thể đổi tên: \(error.localizedDescription)"
         }
     }
 }
