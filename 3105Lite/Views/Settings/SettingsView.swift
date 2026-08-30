@@ -4,23 +4,33 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("autoCleanCache") private var autoCleanCache: Bool = false
     @AppStorage("isAppLockEnabled") private var isAppLockEnabled: Bool = false
+    @AppStorage("selectedAppIcon") private var selectedAppIcon: String = "Default"
     
     @State private var cacheSize: String = "Đang tính..."
     
     var body: some View {
         NavigationStack {
             List {
-                // Tùy chỉnh Giao diện
-                Section(header: Text("Giao diện")) {
+                // Tùy chỉnh Giao diện & Icon
+                Section(header: Text("Giao diện & Biểu tượng")) {
                     Toggle("Chế độ tối (Dark Mode)", isOn: $isDarkMode)
+                    
+                    Picker("Biểu tượng ứng dụng", selection: $selectedAppIcon) {
+                        Text("Mặc định").tag("Default")
+                        Text("Chế độ tối (Dark)").tag("AppIconDark")
+                        Text("Tối giản (Minimal)").tag("AppIconMinimal")
+                    }
+                    .onChange(of: selectedAppIcon) { _, newValue in
+                        let iconName = newValue == "Default" ? nil : newValue
+                        IconManagerService.shared.setAppIcon(name: iconName)
+                    }
                 }
                 
                 // Bảo mật
                 Section(header: Text("Bảo mật")) {
                     Toggle("Bật khóa ứng dụng (Face ID / Passcode)", isOn: $isAppLockEnabled)
-                        .onChange(of: isAppLockEnabled) { oldValue, newValue in
+                        .onChange(of: isAppLockEnabled) { _, newValue in
                             if newValue {
-                                // Xác thực ngay khi người dùng bật tính năng
                                 SecurityService.shared.authenticateUser(reason: "Xác nhận để bật khóa ứng dụng") { success, _ in
                                     if !success {
                                         isAppLockEnabled = false
