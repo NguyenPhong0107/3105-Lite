@@ -12,10 +12,10 @@ targets:
     sources:
       - path: 3105Lite
         excludes:
-          - Info.plist
+          - App/Info.plist
 
     info:
-      path: 3105Lite/Info.plist
+      path: 3105Lite/App/Info.plist
 
     settings:
       base:
