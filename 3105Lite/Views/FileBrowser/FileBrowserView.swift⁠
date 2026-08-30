@@ -50,8 +50,39 @@ struct FileBrowserView: View {
                     } label: {
                         fileRow(for: file)
                     }
-                    // Context Menu (Nhấn giữ)
+                    // Context Menu (Nhấn giữ) - Tích hợp Zip/Unzip, Rename, Delete
                     .contextMenu {
+                        // Tùy chọn Nén / Giải nén (Phase 10)
+                        if file.url.pathExtension.lowercased() == "zip" {
+                            Button(action: {
+                                Task {
+                                    do {
+                                        _ = try await ZipService().unzipItem(at: file.url)
+                                        viewModel.loadFiles(from: folderURL)
+                                    } catch {
+                                        // Xử lý lỗi nếu cần
+                                    }
+                                }
+                            }) {
+                                Label("Giải nén (Unzip)", systemImage: "doc.zipper")
+                            }
+                        } else {
+                            Button(action: {
+                                Task {
+                                    do {
+                                        _ = try await ZipService().zipItem(at: file.url)
+                                        viewModel.loadFiles(from: folderURL)
+                                    } catch {
+                                        // Xử lý lỗi nếu cần
+                                    }
+                                }
+                            }) {
+                                Label("Nén thành .zip", systemImage: "archivebox")
+                            }
+                        }
+                        
+                        Divider()
+                        
                         Button(action: {
                             itemToRename = file
                             newName = file.name
