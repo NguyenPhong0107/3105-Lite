@@ -21,6 +21,15 @@ struct ToolsView: View {
                             .foregroundColor(.orange)
                     }
                 }
+                
+                Section(header: Text("Hệ thống")) {
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Cài đặt", systemImage: "gearshape.fill")
+                            .foregroundColor(.gray)
+                    }
+                }
             }
             .navigationTitle("Công cụ")
         }
