@@ -1,0 +1,20 @@
+name: 3105Lite
+options:
+  bundleIdPrefix: com.vuphong
+targets:
+  3105Lite:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: 3105Lite
+    info:
+      path: 3105Lite/Info.plist
+    settings:
+      base:
+        # Tắt yêu cầu chứng chỉ (Code Signing) để GitHub Actions có thể build test mà không báo lỗi
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+        # Tự động tạo cấu hình Launch Screen cho SwiftUI
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
