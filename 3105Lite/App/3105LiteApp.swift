@@ -1,13 +1,13 @@
 import SwiftUI
 
 @main
-struct _105LiteApp: App {
-    // Khởi tạo FileAccessService làm Singleton ở mức App
+struct _3105LiteApp: App { // Tên struct giữ nguyên theo file của bạn
+    // Khởi tạo Service dùng chung cho toàn bộ App
     @State private var fileAccessService = FileAccessService()
     
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            MainTabView()
                 .environment(fileAccessService)
         }
     }
