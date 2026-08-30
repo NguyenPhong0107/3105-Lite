@@ -31,31 +31,49 @@ struct FileBrowserView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 ForEach(viewModel.files) { file in
-                    fileRow(for: file)
-                        // Context Menu (Nhấn giữ)
-                        .contextMenu {
-                            Button(action: {
-                                itemToRename = file
-                                newName = file.name
-                                showingRenameAlert = true
-                            }) {
-                                Label("Rename", systemImage: "pencil")
-                            }
-                            
-                            Button(role: .destructive, action: {
-                                viewModel.delete(file: file, in: folderURL)
-                            }) {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    NavigationLink {
+                        if file.isDirectory {
+                            // Drill-down: Duyệt vào thư mục con
+                            FileBrowserView(
+                                folderURL: file.url,
+                                title: file.name,
+                                fileAccessService: _viewModel.wrappedValue.fileAccessService
+                            )
+                        } else {
+                            // Mở File Editor để chỉnh sửa file text
+                            FileEditorView(
+                                fileURL: file.url,
+                                parentURL: folderURL,
+                                fileAccessService: _viewModel.wrappedValue.fileAccessService
+                            )
                         }
-                        // Swipe to Delete (Vuốt sang trái)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                viewModel.delete(file: file, in: folderURL)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    } label: {
+                        fileRow(for: file)
+                    }
+                    // Context Menu (Nhấn giữ)
+                    .contextMenu {
+                        Button(action: {
+                            itemToRename = file
+                            newName = file.name
+                            showingRenameAlert = true
+                        }) {
+                            Label("Rename", systemImage: "pencil")
                         }
+                        
+                        Button(role: .destructive, action: {
+                            viewModel.delete(file: file, in: folderURL)
+                        }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    // Swipe to Delete (Vuốt sang trái)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            viewModel.delete(file: file, in: folderURL)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }
