@@ -20,7 +20,7 @@ struct FileBrowserView: View {
     }
     
     var body: some View {
-        List {
+        List(selection: $viewModel.selectedFileIDs) {
             if viewModel.isLoading {
                 ProgressView("Đang tải...")
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -109,7 +109,9 @@ struct FileBrowserView: View {
         .searchable(text: $viewModel.searchText, prompt: "Tìm kiếm tệp tin...")
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                // Menu Sắp xếp
+                // Nút Bật/Tắt chế độ Chọn hàng loạt
+                EditButton()
+                
                 Menu {
                     Picker("Sắp xếp theo", selection: $viewModel.sortOption) {
                         ForEach(SortOption.allCases) { option in
@@ -131,12 +133,28 @@ struct FileBrowserView: View {
                     Image(systemName: "arrow.up.arrow.down")
                 }
                 
-                // Nút Tạo Thư Mục
                 Button(action: {
                     newFolderName = ""
                     showingNewFolderAlert = true
                 }) {
                     Image(systemName: "folder.badge.plus")
+                }
+            }
+            
+            // Thanh công cụ thao tác hàng loạt bên dưới màn hình khi ở chế độ Edit
+            ToolbarItemGroup(placement: .bottomBar) {
+                if !viewModel.selectedFileIDs.isEmpty {
+                    Text("Đã chọn \(viewModel.selectedFileIDs.count) mục")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Button(role: .destructive, action: {
+                        viewModel.deleteSelectedFiles(in: folderURL)
+                    }) {
+                        Label("Xóa chọn", systemImage: "trash")
+                    }
                 }
             }
         }
