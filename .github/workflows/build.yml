@@ -27,11 +27,6 @@ jobs:
         xcodebuild -project 3105Lite.xcodeproj \
                    -scheme 3105Lite \
                    -sdk iphonesimulator \
-                   -destination 'platform=iOS Simulator,name=iPhone 16' \
+                   -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
                    CODE_SIGNING_ALLOWED=NO \
-                   build | xcpretty || xcodebuild -project 3105Lite.xcodeproj \
-                                                  -scheme 3105Lite \
-                                                  -sdk iphonesimulator \
-                                                  -destination 'platform=iOS Simulator,name=iPhone 16' \
-                                                  CODE_SIGNING_ALLOWED=NO \
                    build
