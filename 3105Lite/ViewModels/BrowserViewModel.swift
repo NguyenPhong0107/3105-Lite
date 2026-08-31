@@ -39,14 +39,12 @@ final class BrowserViewModel {
                     let size = Int64(resourceValues.fileSize ?? 0)
                     
                     return FileItem(
-                        id: fileURL,
-                        url: fileURL,
-                        name: fileURL.lastPathComponent,
-                        isDirectory: isDir,
-                        size: size,
-                        creationDate: resourceValues.creationDate,
-                        modificationDate: resourceValues.contentModificationDate
-                    )
+    url: fileURL,
+    name: fileURL.lastPathComponent,
+    isDirectory: isDir,
+    size: size,
+    modificationDate: resourceValues.contentModificationDate
+)
                 }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             }
         } catch {
