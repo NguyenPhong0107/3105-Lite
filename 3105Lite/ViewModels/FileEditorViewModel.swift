@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Observation
 
 @Observable
 final class FileEditorViewModel {
@@ -8,54 +9,77 @@ final class FileEditorViewModel {
     var isLoading: Bool = false
     var errorMessage: String?
     var showSuccessToast: Bool = false
-    
+
     var hasChanges: Bool {
         text != originalText
     }
-    
+
     private let fileAccessService: FileAccessService
     private let fileOperationService = FileOperationService()
+
     let fileURL: URL
     let parentURL: URL
-    
-    init(fileURL: URL, parentURL: URL, fileAccessService: FileAccessService) {
+
+    init(
+        fileURL: URL,
+        parentURL: URL,
+        fileAccessService: FileAccessService
+    ) {
         self.fileURL = fileURL
         self.parentURL = parentURL
         self.fileAccessService = fileAccessService
     }
-    
+
     func loadFile() {
         isLoading = true
         errorMessage = nil
+
         do {
-            let content = try fileAccessService.performSecureAccess(url: parentURL) {
+            let content = try fileAccessService.performSecureAccess(
+                url: parentURL
+            ) {
                 try fileOperationService.readString(from: fileURL)
             }
-            self.text = content
-            self.originalText = content
+
+            text = content
+            originalText = content
         } catch {
-            self.errorMessage = "Không thể đọc file: \(error.localizedDescription)"
+            errorMessage = "Không thể đọc file: \(error.localizedDescription)"
         }
+
         isLoading = false
     }
-    
+
     func saveFile() {
-        guard hasChanges else { return }
+        guard hasChanges else {
+            return
+        }
+
         errorMessage = nil
+
         do {
-            try fileAccessService.performSecureAccess(url: parentURL) {
-                try fileOperationService.writeString(text, to: fileURL)
+            try fileAccessService.performSecureAccess(
+                url: parentURL
+            ) {
+                try fileOperationService.writeString(
+                    text,
+                    to: fileURL
+                )
             }
-            self.originalText = text
-            
+
+            originalText = text
+
             withAnimation {
                 showSuccessToast = true
             }
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation { self.showSuccessToast = false }
+                withAnimation {
+                    self.showSuccessToast = false
+                }
             }
         } catch {
-            self.errorMessage = "Lỗi khi lưu: \(error.localizedDescription)"
+            errorMessage = "Lỗi khi lưu: \(error.localizedDescription)"
         }
     }
 }
